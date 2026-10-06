@@ -1,8 +1,8 @@
-# Northwind Expense Application — Network Requirements
+# Network Requirements
 
 ## Scenario
 
-Northwind is deploying an internal expense-management application to Azure in **Canada Central**.
+A security orgnization is deploying an internal application to Azure in **Canada Central**.
 
 A central Azure hub already exists and provides shared enterprise connectivity. The application team owns the workload spoke and its PaaS resources.
 
