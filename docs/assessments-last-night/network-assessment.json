@@ -1,0 +1,534 @@
+{
+  "schema_version": "1.0",
+  "assessment": {
+    "title": "Azure Networking Assessment",
+    "overall_status": "Action Required",
+    "scope": "Repository IaC assessment of infra/",
+    "environment": "Test",
+    "region": "Canada Central (Terraform default)",
+    "assessment_date": "2026-10-06",
+    "live_azure_validation": false,
+    "executive_summary": "The Terraform defines useful workload subnet separation and a correctly targeted Storage blob Private Endpoint, but the intended traffic paths do not meet the documented Zero Trust baseline. The application subnet explicitly routes Internet traffic directly to the Internet, the management NSG authorizes Internet-sourced RDP, and backend PaaS services retain unrestricted public access. Private DNS integration is incomplete, the repository creates its own hub instead of consuming a validated platform hub, and no network telemetry or alerting is defined. Remediation should first remove direct egress and administrative exposure, then establish private-only PaaS connectivity through the approved shared platform."
+  },
+  "scorecard": [
+    {
+      "area": "Network Topology",
+      "status": "Action Required",
+      "summary": "The workload creates a local hub and only one peering direction; approved platform connectivity is not established."
+    },
+    {
+      "area": "Routing & Egress",
+      "status": "Action Required",
+      "summary": "The application subnet default route bypasses central inspection and uses the Internet next hop."
+    },
+    {
+      "area": "Network Security",
+      "status": "Action Required",
+      "summary": "Internet-sourced RDP is authorized and east-west controls do not demonstrate least privilege."
+    },
+    {
+      "area": "Private Connectivity",
+      "status": "Action Required",
+      "summary": "Storage and Key Vault retain public access; Key Vault has no Private Endpoint."
+    },
+    {
+      "area": "DNS",
+      "status": "Action Required",
+      "summary": "The Storage private zone has no VNet link or Private DNS zone group."
+    },
+    {
+      "area": "Monitoring & Observability",
+      "status": "Action Required",
+      "summary": "No flow logs, diagnostic settings, connectivity monitors, or alerts are declared."
+    }
+  ],
+  "architecture": {
+    "summary": "The repository deploys separate hub and application VNets in one resource group. The application VNet contains application, Private Endpoint, and management subnets, with only application-to-hub peering. The application subnet has an NSG and a route table; management has an NSG; Storage has a blob Private Endpoint; Key Vault remains public.",
+    "components": [
+      "Repository-managed hub VNet",
+      "Application spoke VNet",
+      "Application subnet",
+      "Private Endpoint subnet",
+      "Management subnet",
+      "Storage account and blob Private Endpoint",
+      "Key Vault",
+      "Application route table",
+      "Application and management NSGs"
+    ],
+    "flows": [
+      {
+        "name": "Internet egress",
+        "path": [
+          "Application subnet",
+          "0.0.0.0/0 route",
+          "Internet"
+        ],
+        "status": "Non-compliant"
+      },
+      {
+        "name": "Hub connectivity",
+        "path": [
+          "Application VNet",
+          "One-way peering",
+          "Repository-managed hub VNet"
+        ],
+        "status": "Incomplete"
+      },
+      {
+        "name": "Storage blob access",
+        "path": [
+          "Approved client",
+          "Storage blob Private Endpoint",
+          "Storage account"
+        ],
+        "status": "DNS integration incomplete; public fallback enabled"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "NET-001",
+      "requirement_id": "NET-FW-002",
+      "severity": "High",
+      "area": "Routing & Egress",
+      "title": "Application egress bypasses central inspection",
+      "priority": "P1",
+      "evidence": [
+        {
+          "source": "infra/routing.tf",
+          "detail": "The application route table defines 0.0.0.0/0 with next_hop_type set to Internet and associates it with the application subnet."
+        }
+      ],
+      "observed_state": "Internet-bound application traffic is intentionally routed directly to the Internet; no approved firewall or NVA next hop is referenced.",
+      "expected_state": "Internet egress must traverse the approved central inspection layer, and workload routes must not introduce a direct Internet bypass.",
+      "risk": "Workload egress can avoid centrally governed filtering, threat detection, logging, and destination controls.",
+      "recommendation": "Obtain the approved platform firewall or NVA next-hop configuration, replace the Internet default route with the approved VirtualAppliance path, and validate effective and return routes before deployment.",
+      "dependencies": [
+        "Platform-provided central inspection next-hop address and routing design"
+      ]
+    },
+    {
+      "id": "NET-002",
+      "requirement_id": "NET-NSG-003",
+      "severity": "High",
+      "area": "Network Security",
+      "title": "Management subnet authorizes Internet-sourced RDP",
+      "priority": "P1",
+      "evidence": [
+        {
+          "source": "infra/security.tf",
+          "detail": "The management NSG allows TCP/3389 from the Internet service tag to any destination in the subnet."
+        },
+        {
+          "source": "infra/network.tf",
+          "detail": "The management NSG is associated with the dedicated management subnet."
+        }
+      ],
+      "observed_state": "The subnet policy permits direct RDP from the Internet if a routable public ingress path exists. No public IP resource was found in this repository, so deployed reachability was not validated.",
+      "expected_state": "Administrative access must use an approved controlled path and administrative ports must not be authorized directly from the public Internet without an approved exception.",
+      "risk": "A present or future public ingress path could expose privileged administration to password attacks and remote exploitation.",
+      "recommendation": "Remove the Internet-to-RDP rule and permit administration only through the approved Bastion, private management, or Entra Private Access path, scoped to required sources and destinations.",
+      "dependencies": [
+        "Confirmation of the organization-approved administrative access path"
+      ]
+    },
+    {
+      "id": "NET-003",
+      "requirement_id": "NET-PE-002",
+      "severity": "High",
+      "area": "Private Connectivity",
+      "title": "Backend PaaS services retain unrestricted public access",
+      "priority": "P1",
+      "evidence": [
+        {
+          "source": "infra/storage.tf",
+          "detail": "Storage public network access is enabled and network_rules.default_action is Allow despite the blob Private Endpoint."
+        },
+        {
+          "source": "infra/keyvault.tf",
+          "detail": "Key Vault public network access is enabled and no Key Vault Private Endpoint is declared."
+        }
+      ],
+      "observed_state": "Storage can be accessed through its public endpoint from unrestricted networks, and Key Vault is public-only in the declared implementation.",
+      "expected_state": "Sensitive backend PaaS services must use approved private connectivity and disable or restrict unrequired public access without public fallback.",
+      "risk": "Public data-plane endpoints expand the attack surface and allow clients to bypass workload routing, segmentation, and private DNS controls.",
+      "recommendation": "Set Storage public access to disabled after validating private access, add an approved Key Vault Private Endpoint and DNS integration, disable Key Vault public access, and add only explicitly approved exceptions if required.",
+      "dependencies": [
+        "Confirmation of workload data sensitivity and approved PaaS access sources"
+      ]
+    },
+    {
+      "id": "NET-004",
+      "requirement_id": "NET-DNS-001",
+      "severity": "High",
+      "area": "DNS",
+      "title": "Storage Private Endpoint DNS integration is incomplete",
+      "priority": "P2",
+      "evidence": [
+        {
+          "source": "infra/storage.tf",
+          "detail": "A privatelink.blob.core.windows.net zone is created, but the Private Endpoint has no private_dns_zone_group."
+        },
+        {
+          "source": "infra/",
+          "detail": "No azurerm_private_dns_zone_virtual_network_link resource is declared."
+        }
+      ],
+      "observed_state": "The private zone is neither attached to the Private Endpoint for record registration nor linked to a VNet for resolution.",
+      "expected_state": "Approved clients must resolve the Storage service name to the Private Endpoint address through the enterprise DNS design, without creating conflicting DNS authority.",
+      "risk": "Clients can resolve the public Storage endpoint instead of the private address, fail private connectivity, or depend on the currently enabled public fallback.",
+      "recommendation": "Confirm whether the private zone is platform-owned. Reference the approved shared zone when available, add the Private DNS zone group, and implement the required VNet link or enterprise DNS forwarding path.",
+      "dependencies": [
+        "Platform confirmation of Private DNS zone ownership and resolver integration"
+      ]
+    },
+    {
+      "id": "NET-005",
+      "requirement_id": "NET-TOPO-001",
+      "severity": "High",
+      "area": "Network Topology",
+      "title": "Workload repository creates an incomplete local hub",
+      "priority": "P2",
+      "evidence": [
+        {
+          "source": "infra/network.tf",
+          "detail": "The workload declares both hub and application VNets and only an application-to-hub peering."
+        },
+        {
+          "source": "infra/outputs.tf",
+          "detail": "The locally created hub VNet is exposed as a workload output rather than referenced as an existing platform service."
+        },
+        {
+          "source": "docs/platform-context.md",
+          "detail": "Workloads are expected to consume centrally managed connectivity capabilities instead of recreating them."
+        }
+      ],
+      "observed_state": "The repository creates a nominal hub with no central firewall, DNS, gateway, or reverse peering, rather than integrating with validated platform connectivity.",
+      "expected_state": "The workload must consume the approved Azure Landing Zone connectivity platform and must not recreate an enterprise hub or other shared connectivity service.",
+      "risk": "The spoke can be isolated from shared services or connected through an ungoverned topology that lacks inspection, return connectivity, DNS, and hybrid routes.",
+      "recommendation": "Remove the workload-owned hub after obtaining the approved platform VNet or Virtual WAN identifiers, establish all platform-owned and workload-owned directional connections with the required forwarded-traffic settings, and validate effective routes.",
+      "dependencies": [
+        "Platform hub or Virtual WAN identifiers and peering ownership model"
+      ]
+    },
+    {
+      "id": "NET-006",
+      "requirement_id": "NET-NSG-004",
+      "severity": "Medium",
+      "area": "Network Security",
+      "title": "East-west least-privilege controls are not established",
+      "priority": "P2",
+      "evidence": [
+        {
+          "source": "infra/security.tf",
+          "detail": "Only application and management subnets have NSG associations; no explicit required east-west flows or deny controls are defined."
+        },
+        {
+          "source": "infra/network.tf",
+          "detail": "The Private Endpoint subnet has no NSG association, and all three subnets share one VNet."
+        },
+        {
+          "source": "infra/security.tf",
+          "detail": "The application inbound HTTPS rule uses Internet as source and any subnet destination rather than a named approved ingress path."
+        }
+      ],
+      "observed_state": "Default Azure VNet rules remain the principal east-west policy, and the implementation does not encode required flows among application, management, and Private Endpoint boundaries.",
+      "expected_state": "Network controls must allow only documented workload flows and limit lateral movement between materially different security boundaries.",
+      "risk": "A compromised resource may have broader connectivity to management or backend endpoints than the application requires.",
+      "recommendation": "Document required flows, associate an approved NSG policy with each applicable subnet, replace broad sources and destinations with approved ingress and workload prefixes or service tags, and add explicit higher-priority denies where needed.",
+      "dependencies": [
+        "Required application, management, and Private Endpoint traffic-flow matrix"
+      ]
+    },
+    {
+      "id": "NET-007",
+      "requirement_id": "NET-MON-001",
+      "severity": "Medium",
+      "area": "Monitoring & Observability",
+      "title": "Network security telemetry and alerting are absent",
+      "priority": "P3",
+      "evidence": [
+        {
+          "source": "infra/",
+          "detail": "No diagnostic settings, Virtual Network flow logs, Connection Monitor resources, metric alerts, or Log Analytics integration are declared."
+        }
+      ],
+      "observed_state": "The workload IaC does not provide flow visibility, network diagnostic integration, critical-path monitoring, or meaningful network alerts.",
+      "expected_state": "Network-security telemetry must support detection and investigation, critical resources must integrate with approved monitoring, and material failures must produce meaningful alerts.",
+      "risk": "Operators may be unable to detect bypass, investigate denied or allowed flows, or identify connectivity degradation promptly.",
+      "recommendation": "Integrate applicable network resources with the approved central monitoring destination, enable supported VNet flow visibility where operationally justified, and define alerts or connectivity tests for material workload paths.",
+      "dependencies": [
+        "Platform monitoring workspace or SIEM destination",
+        "Operational definition of business-critical connectivity paths"
+      ]
+    }
+  ],
+  "requirement_compliance": [
+    {
+      "requirement_id": "NET-TOPO-001",
+      "status": "Not Met",
+      "evidence": "infra/network.tf",
+      "notes": "A local hub is created and approved platform connectivity is not referenced."
+    },
+    {
+      "requirement_id": "NET-TOPO-002",
+      "status": "Met",
+      "evidence": "infra/network.tf",
+      "notes": "The workload uses a dedicated application VNet."
+    },
+    {
+      "requirement_id": "NET-TOPO-003",
+      "status": "Partially Met",
+      "evidence": "infra/network.tf; infra/security.tf",
+      "notes": "Subnets are separated by purpose, but enforceable least-privilege controls are incomplete."
+    },
+    {
+      "requirement_id": "NET-TOPO-004",
+      "status": "Not Met",
+      "evidence": "infra/network.tf; docs/platform-context.md",
+      "notes": "The workload recreates a hub instead of consuming confirmed shared connectivity."
+    },
+    {
+      "requirement_id": "NET-IP-001",
+      "status": "Unable to Validate",
+      "evidence": "infra/network.tf",
+      "notes": "The declared hub and application ranges do not overlap each other, but connected platform and on-premises ranges are unavailable."
+    },
+    {
+      "requirement_id": "NET-SNET-001",
+      "status": "Partially Met",
+      "evidence": "infra/network.tf; infra/security.tf",
+      "notes": "Application, management, and Private Endpoint subnets are separate, but their boundaries are not fully enforced."
+    },
+    {
+      "requirement_id": "NET-SNET-002",
+      "status": "Partially Met",
+      "evidence": "infra/storage.tf",
+      "notes": "The Storage endpoint uses a dedicated subnet; platform approval of that subnet model is unavailable."
+    },
+    {
+      "requirement_id": "NET-NSG-001",
+      "status": "Partially Met",
+      "evidence": "infra/security.tf",
+      "notes": "NSGs exist for two subnets, but the rules do not demonstrate least privilege."
+    },
+    {
+      "requirement_id": "NET-NSG-003",
+      "status": "Not Met",
+      "evidence": "infra/security.tf",
+      "notes": "The management NSG authorizes Internet-sourced RDP."
+    },
+    {
+      "requirement_id": "NET-NSG-004",
+      "status": "Not Met",
+      "evidence": "infra/security.tf",
+      "notes": "Required east-west flows and restrictive segmentation rules are not encoded."
+    },
+    {
+      "requirement_id": "NET-FW-001",
+      "status": "Not Met",
+      "evidence": "infra/network.tf; infra/routing.tf",
+      "notes": "No approved central inspection layer is consumed by the workload."
+    },
+    {
+      "requirement_id": "NET-FW-002",
+      "status": "Not Met",
+      "evidence": "infra/routing.tf",
+      "notes": "The application default route uses the Internet next hop."
+    },
+    {
+      "requirement_id": "NET-FW-003",
+      "status": "Not Met",
+      "evidence": "infra/routing.tf",
+      "notes": "A direct 0.0.0.0/0 to Internet bypass is explicitly declared."
+    },
+    {
+      "requirement_id": "NET-FW-004",
+      "status": "External Dependency",
+      "evidence": "docs/platform-context.md",
+      "notes": "No platform firewall policy or ownership evidence is available."
+    },
+    {
+      "requirement_id": "NET-RT-001",
+      "status": "Not Met",
+      "evidence": "infra/routing.tf",
+      "notes": "The configured route bypasses the required central inspection path."
+    },
+    {
+      "requirement_id": "NET-RT-002",
+      "status": "Partially Met",
+      "evidence": "infra/routing.tf",
+      "notes": "The route table is associated with the application subnet, but it enforces a non-compliant path."
+    },
+    {
+      "requirement_id": "NET-RT-003",
+      "status": "Unable to Validate",
+      "evidence": "infra/network.tf; infra/routing.tf",
+      "notes": "No complete stateful inspection or return-route design is available."
+    },
+    {
+      "requirement_id": "NET-RT-004",
+      "status": "Unable to Validate",
+      "evidence": "Repository-only assessment",
+      "notes": "Effective routes were not queried from live Azure."
+    },
+    {
+      "requirement_id": "NET-IN-001",
+      "status": "Unable to Validate",
+      "evidence": "infra/security.tf",
+      "notes": "Internet-sourced HTTPS is allowed, but public ingress need and approval are undocumented and no public ingress resource is declared."
+    },
+    {
+      "requirement_id": "NET-IN-002",
+      "status": "Unable to Validate",
+      "evidence": "infra/",
+      "notes": "No approved ingress component is declared; whether Internet ingress is required is unknown."
+    },
+    {
+      "requirement_id": "NET-ADM-001",
+      "status": "Not Met",
+      "evidence": "infra/security.tf",
+      "notes": "The only explicit administrative policy is an Internet-sourced RDP allow rule."
+    },
+    {
+      "requirement_id": "NET-PE-001",
+      "status": "Partially Met",
+      "evidence": "infra/storage.tf; infra/keyvault.tf",
+      "notes": "Storage has a blob Private Endpoint, but Key Vault does not."
+    },
+    {
+      "requirement_id": "NET-PE-002",
+      "status": "Not Met",
+      "evidence": "infra/storage.tf; infra/keyvault.tf",
+      "notes": "Both backend services have public network access enabled; Storage permits all networks."
+    },
+    {
+      "requirement_id": "NET-PE-003",
+      "status": "Partially Met",
+      "evidence": "infra/storage.tf",
+      "notes": "The target, blob subresource, and dedicated subnet are correct, but DNS integration is missing."
+    },
+    {
+      "requirement_id": "NET-PE-004",
+      "status": "Not Met",
+      "evidence": "infra/storage.tf",
+      "notes": "The Storage public endpoint remains an unrestricted fallback."
+    },
+    {
+      "requirement_id": "NET-DNS-001",
+      "status": "Not Met",
+      "evidence": "infra/storage.tf",
+      "notes": "No zone group or VNet link establishes private endpoint name resolution."
+    },
+    {
+      "requirement_id": "NET-DNS-002",
+      "status": "External Dependency",
+      "evidence": "docs/platform-context.md",
+      "notes": "The enterprise resolver and forwarding design is not provided."
+    },
+    {
+      "requirement_id": "NET-DNS-003",
+      "status": "Unable to Validate",
+      "evidence": "infra/storage.tf",
+      "notes": "A workload private zone is created, but central namespace ownership is unknown."
+    },
+    {
+      "requirement_id": "NET-MON-001",
+      "status": "Not Met",
+      "evidence": "infra/",
+      "notes": "No workload network-security telemetry is declared or externally evidenced."
+    },
+    {
+      "requirement_id": "NET-MON-002",
+      "status": "Not Met",
+      "evidence": "infra/",
+      "notes": "No Virtual Network flow logging is declared."
+    },
+    {
+      "requirement_id": "NET-MON-003",
+      "status": "External Dependency",
+      "evidence": "docs/platform-context.md",
+      "notes": "Central firewall telemetry cannot be validated without platform evidence."
+    },
+    {
+      "requirement_id": "NET-MON-004",
+      "status": "Not Met",
+      "evidence": "infra/",
+      "notes": "No diagnostic settings or approved monitoring destination are declared."
+    },
+    {
+      "requirement_id": "NET-MON-005",
+      "status": "Unable to Validate",
+      "evidence": "infra/",
+      "notes": "Business-critical paths and any externally managed connectivity monitoring are not identified."
+    },
+    {
+      "requirement_id": "NET-MON-006",
+      "status": "Not Met",
+      "evidence": "infra/",
+      "notes": "No network-security or connectivity alerts are declared."
+    },
+    {
+      "requirement_id": "NET-ENC-001",
+      "status": "Partially Met",
+      "evidence": "infra/storage.tf; infra/security.tf",
+      "notes": "Storage requires TLS 1.2 and application ingress uses HTTPS, but RDP exposure remains an administrative transport concern."
+    },
+    {
+      "requirement_id": "NET-RES-001",
+      "status": "Not Met",
+      "evidence": "infra/; docs/platform-context.md",
+      "notes": "Critical firewall, DNS, ingress, and monitoring dependencies are not concretely identified."
+    },
+    {
+      "requirement_id": "NET-RES-002",
+      "status": "Not Met",
+      "evidence": "infra/routing.tf; infra/storage.tf",
+      "notes": "Direct Internet routing and public Storage access provide bypass paths rather than failing closed."
+    }
+  ],
+  "positive_findings": [
+    {
+      "title": "Purpose-specific subnet separation",
+      "evidence": "infra/network.tf separates application, management, and Private Endpoint address ranges."
+    },
+    {
+      "title": "Correct Storage Private Endpoint target",
+      "evidence": "infra/storage.tf targets the Storage account blob subresource from the dedicated Private Endpoint subnet."
+    },
+    {
+      "title": "Storage transport baseline",
+      "evidence": "infra/storage.tf requires TLS 1.2 and disables anonymous nested-item publication."
+    },
+    {
+      "title": "Explicit route and NSG associations",
+      "evidence": "infra/routing.tf and infra/security.tf associate declared controls with their intended application and management subnets."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "ASM-001",
+      "topic": "Live Azure state",
+      "detail": "The assessment is based on repository intent only; deployed reachability, effective routes, effective NSG rules, and configuration drift were not inspected.",
+      "validation_required": "Perform targeted read-only Azure validation before security acceptance."
+    },
+    {
+      "id": "ASM-002",
+      "topic": "Shared connectivity platform",
+      "detail": "Platform hub, firewall, DNS, hybrid connectivity, and monitoring identifiers and configurations were not available.",
+      "validation_required": "Obtain authoritative platform outputs and ownership details from the platform team."
+    },
+    {
+      "id": "ASM-003",
+      "topic": "Workload security profile",
+      "detail": "Required public ingress, egress destinations, hybrid access, administrative model, data sensitivity, and critical paths are not documented.",
+      "validation_required": "Complete the workload security profile and required-flow matrix."
+    },
+    {
+      "id": "ASM-004",
+      "topic": "Address-space uniqueness",
+      "detail": "The declared VNets do not overlap each other, but no connected Azure or on-premises address inventory was available.",
+      "validation_required": "Validate 10.10.0.0/16 and 10.20.0.0/16 against the enterprise IP address plan."
+    }
+  ]
+}

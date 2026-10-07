@@ -1,278 +1,310 @@
 ---
 name: assessment-reporting
-description: Creates concise dashboard-style Markdown assessment reports with executive summaries, scorecards, prioritized findings, compliance matrices, remediation plans, architecture diagrams, positive findings, and assumptions. Use when an agent must produce a formal technical assessment artifact.
+description: Produces a compact structured assessment JSON that is rendered deterministically into professional Markdown and HTML reports. Use only after technical findings are finalized.
 ---
 
 # Assessment Reporting Skill
 
-Use this skill when creating a persistent technical assessment or recommendation report.
+Use this skill only after the technical assessment and findings are finalized.
 
-The report should be easy to review directly in GitHub or VS Code Markdown Preview.
+The agent must create one structured source of truth:
 
-The specialist agent or specialist skill determines the technical findings. This skill determines how those findings are organized and presented.
+`docs/assessments/network-assessment.json`
+
+Do not independently write the Markdown or HTML assessment.
+
+The repository renderer converts the JSON into:
+
+- `docs/assessments/network-recommendations.md`
+- `docs/assessments/network-recommendations.html`
+
+This avoids duplicated model output and guarantees report consistency.
 
 # Reporting Principles
 
-1. Keep the report concise and evidence-based.
-2. Put the most important information near the top.
-3. Use tables for scorecards, compliance, and remediation planning.
-4. Use detailed prose only where it improves understanding.
-5. Distinguish confirmed findings from assumptions.
-6. Include positive findings as well as deficiencies.
-7. Keep severity counts internally consistent.
-8. Make recommendations actionable.
-9. Do not use decorative formatting that reduces readability.
-10. Do not duplicate the same finding in multiple severity sections.
+The structured assessment must be:
+
+- concise
+- evidence based
+- deduplicated
+- implementation oriented
+- suitable for engineering review
+- suitable for executive dashboard rendering
+
+Do not repeat the same finding in multiple fields.
+
+Do not copy full Terraform blocks or large source excerpts.
+
+Use short evidence descriptions with precise file references.
+
+# Required JSON Shape
+
+Create valid JSON using this structure:
+
+```json
+{
+  "schema_version": "1.0",
+  "assessment": {
+    "title": "Azure Networking Assessment",
+    "overall_status": "Action Required",
+    "scope": "Repository IaC assessment",
+    "environment": "Unknown",
+    "region": "Unknown",
+    "assessment_date": "YYYY-MM-DD",
+    "live_azure_validation": false,
+    "executive_summary": "Concise 3-5 sentence summary."
+  },
+  "scorecard": [
+    {
+      "area": "Routing & Egress",
+      "status": "Action Required",
+      "summary": "Short status explanation."
+    }
+  ],
+  "architecture": {
+    "summary": "Short architecture summary.",
+    "components": [
+      "Workload VNet",
+      "Central inspection layer"
+    ],
+    "flows": [
+      {
+        "name": "Internet egress",
+        "path": [
+          "Workload",
+          "Central Firewall",
+          "Internet"
+        ],
+        "status": "Expected"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "NET-001",
+      "requirement_id": "NET-FW-002",
+      "severity": "High",
+      "area": "Routing & Egress",
+      "title": "Short finding title",
+      "priority": "P1",
+      "evidence": [
+        {
+          "source": "infra/routing.tf",
+          "detail": "Concise evidence statement."
+        }
+      ],
+      "observed_state": "What was observed.",
+      "expected_state": "What the requirement expects.",
+      "risk": "Why this matters.",
+      "recommendation": "Specific remediation.",
+      "dependencies": []
+    }
+  ],
+  "requirement_compliance": [
+    {
+      "requirement_id": "NET-FW-002",
+      "status": "Not Met",
+      "evidence": "infra/routing.tf",
+      "notes": "Short compliance note."
+    }
+  ],
+  "positive_findings": [
+    {
+      "title": "Positive control",
+      "evidence": "Concise supporting evidence."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "ASM-001",
+      "topic": "External firewall policy",
+      "detail": "Policy is platform managed and not present in this repository.",
+      "validation_required": "Confirm required rules with the platform team."
+    }
+  ]
+}
+```
 
-# Required Report Structure
+# Field Rules
 
-## 1. Assessment Header
+## `assessment`
 
-Start with a clear title appropriate to the assessment.
+Required.
 
-For Azure networking use:
+`overall_status` should normally be one of:
 
-# Azure Networking Assessment Dashboard
+- Healthy
+- Improvement Recommended
+- Action Required
+- Critical Action Required
 
-Then include:
+`environment` and `region` should be `Unknown` when they cannot be established safely.
 
-> **Assessment Status:** <Critical / Action Required / Improvements Recommended / Healthy>  
-> **Environment:** <environment if known, otherwise Unknown>  
-> **Azure Region:** <region if known, otherwise Unknown>  
-> **Assessment Scope:** <scope>  
-> **Last Assessment:** <current date>
+Do not invent them.
 
-## 2. Executive Summary
+`live_azure_validation` must be `true` only when live Azure state was actually queried successfully.
 
-Provide a concise 3–5 sentence summary covering:
+## `scorecard`
 
-- overall posture
-- most important risks
-- alignment with documented requirements
-- highest-priority remediation theme
+Keep this compact.
 
-Do not repeat every detailed finding.
+Use only relevant assessment domains.
 
-## 3. Assessment Overview
+Typical Azure Networking domains include:
 
-Use a simple summary table.
+- Network Topology
+- Routing & Egress
+- Network Security
+- Private Connectivity
+- DNS
+- Hybrid Connectivity
+- Monitoring & Observability
+- Resiliency
 
-For example:
+Do not create scorecard rows for obviously irrelevant domains.
 
-| Metric | Result |
-|---|---:|
-| Critical Findings | <count> |
-| High Findings | <count> |
-| Medium Findings | <count> |
-| Low Findings | <count> |
-| Requirements Met | <count> |
-| Requirements Partially Met | <count> |
-| Requirements Not Met | <count> |
+## `architecture`
 
-Only include requirement metrics when documented requirements exist.
+Keep this high level.
 
-## 4. Assessment Scorecard
+`components` should list important architecture components, not every resource.
 
-Create a scorecard using categories relevant to the specialist assessment.
+`flows` should describe only material paths such as:
 
-For an Azure networking assessment, use:
+- Internet egress
+- public ingress
+- hybrid connectivity
+- Private Endpoint access
+- shared-service connectivity
 
-| Area | Status | Critical | High | Medium | Low |
-|---|---|---:|---:|---:|---:|
-| Network Topology | ✅ / ⚠️ / ❌ | 0 | 0 | 0 | 0 |
-| Routing & Egress | ✅ / ⚠️ / ❌ | 0 | 0 | 0 | 0 |
-| Network Security | ✅ / ⚠️ / ❌ | 0 | 0 | 0 | 0 |
-| Private Connectivity | ✅ / ⚠️ / ❌ | 0 | 0 | 0 | 0 |
-| DNS | ✅ / ⚠️ / ❌ | 0 | 0 | 0 | 0 |
-| Hybrid Connectivity | ✅ / ⚠️ / ❌ | 0 | 0 | 0 | 0 |
-| Resiliency | ✅ / ⚠️ / ❌ | 0 | 0 | 0 | 0 |
+Do not invent components or flows.
 
-Use:
+If architecture cannot be determined reliably, use an empty component or flow list and explain the limitation in `summary`.
 
-- ✅ Healthy / aligned
-- ⚠️ Improvement required
-- ❌ Significant issue
+## `findings`
 
-Ensure the counts match the detailed findings.
+Findings are the primary technical output.
 
-# Priority Findings
+Allowed severity values:
 
-Order findings by:
+- Critical
+- High
+- Medium
+- Low
 
-1. severity
-2. technical/business impact
-3. remediation dependency
+Each finding must represent a distinct root cause.
 
-Use a short domain prefix for finding IDs.
+Do not create separate findings merely to repeat the same issue across multiple report sections.
 
-For Azure networking use:
+`requirement_id` should reference the applicable target-state requirement whenever possible.
 
-- `NET-001`
-- `NET-002`
-- `NET-003`
+`priority` should normally be:
 
-Organize findings under:
+- P1
+- P2
+- P3
+- P4
 
-## 🔴 Critical Findings
-## 🟠 High Findings
-## 🟡 Medium Findings
-## 🔵 Low Findings
+Use P1 only for the most urgent remediation.
 
-If a severity has no findings, explicitly state that no findings were identified at that severity.
+Evidence must be concise.
 
-For each finding use:
+Example:
 
-### NET-XXX — <Finding Title>
+```json
+{
+  "source": "infra/routing.tf",
+  "detail": "The default route uses Internet as the next hop instead of the required central inspection layer."
+}
+```
 
-**Area:**  
-<assessment area>
+Do not paste full source blocks.
 
-**Evidence:**  
-`<file path>` — `<resource, setting, or documented requirement>`
+## `requirement_compliance`
 
-**Observed State:**  
-<what repository evidence shows>
+Include applicable requirements that materially help the assessment.
 
-**Expected State:**  
-<what documented requirements or architecture expect>
+Allowed status values:
 
-**Risk:**  
-<technical or business impact>
+- Met
+- Partially Met
+- Not Met
+- Unable to Validate
+- Not Applicable
+- External Dependency
 
-**Recommendation:**  
-<specific remediation guidance>
+Do not duplicate the complete requirement text.
 
-**Dependencies / Considerations:**  
-<validation or coordination needed before remediation>
+Reference the requirement ID and provide a short compliance note.
 
-# Architecture Observations
+## `positive_findings`
 
-Summarize the architecture discovered from repository evidence.
+Include only evidence-backed strengths.
 
-Clearly distinguish:
+Keep each item concise.
 
-**Observed in repository**
+## `assumptions`
 
-from:
+Use assumptions only where evidence is insufficient.
 
-**Assumed external/shared platform dependency**
+Do not present assumptions as confirmed facts.
 
-Do not present assumptions as confirmed architecture.
+# Derived Information
 
-# Architecture Diagram
+Do NOT manually add severity counts.
 
-When the architecture can be reliably determined, create a Mermaid diagram representing the actual discovered environment.
+The renderer derives:
 
-Only include resources and connections supported by:
+- Critical count
+- High count
+- Medium count
+- Low count
 
-- repository evidence
-- architecture documentation
-- clearly labeled assumptions
+Do NOT duplicate a separate remediation plan unless a remediation cannot be represented by the corresponding finding.
 
-Do not invent architecture components or connectivity paths.
+The renderer derives the prioritized remediation view from finding priorities and recommendations.
 
-Keep the Mermaid diagram simple enough to render reliably in GitHub and VS Code.
+Do NOT create separate top-priority fields.
 
-# Requirements Compliance
+The renderer derives the top actions from P1/P2/P3 findings.
 
-When documented requirements exist, create a compliance matrix.
+# Token Efficiency
 
-Use:
+Use short, factual strings.
 
-| ID | Requirement | Status | Evidence | Notes |
-|---|---|---|---|---|
-| REQ-001 | <requirement> | ✅ Met / ⚠️ Partial / ❌ Not Met / ❓ Unable to Validate | `<file/resource>` | <notes> |
+Prefer:
 
-If the source requirements do not have IDs, assign sequential IDs only for reporting purposes.
+`"evidence": "infra/routing.tf"`
 
-Use:
+over repeating file contents.
 
-- ✅ Met
-- ⚠️ Partially Met
-- ❌ Not Met
-- ❓ Unable to Validate
+Prefer one root-cause finding with several concise evidence entries over several repetitive findings.
 
-Do not mark a requirement as met without evidence.
+Do not repeat:
 
-# Recommended Remediation Plan
+- severity counts
+- complete requirement text
+- identical recommendations
+- the executive summary inside individual findings
+- the same evidence in several sections
 
-Create an actionable backlog.
+The JSON is an assessment data model, not prose documentation.
 
-Use:
+# Validation Before Rendering
 
-| Priority | Finding | Recommendation | Area | Effort | Impact |
-|---|---|---|---|---|---|
-| P1 | NET-XXX | <action> | <area> | Low / Medium / High | High |
-| P2 | NET-XXX | <action> | <area> | Low / Medium / High | High |
-| P3 | NET-XXX | <action> | <area> | Low / Medium / High | Medium |
+Before running the renderer, verify:
 
-Prioritize based on:
-
-1. security exposure
-2. broken mandatory functionality
-3. documented requirement violations
-4. dependency order
-5. operational impact
-6. implementation effort
-
-Do not prioritize solely by ease of implementation.
-
-# Positive Findings
-
-Include correctly implemented architecture or controls when supported by evidence.
-
-This ensures the assessment describes the overall posture rather than only failures.
-
-# Assumptions & Validation Required
-
-For anything that cannot be conclusively validated, use:
-
-### ASSUMPTION-XXX — <Title>
-
-**Reason:**  
-<why available evidence is insufficient>
-
-**Validation Required:**  
-<what should be checked and where>
-
-Never present assumptions as confirmed facts.
-
-# Assessment Summary
-
-Finish with:
-
-**Overall Status:** <status>
-
-**Findings**
-
-- Critical: <count>
-- High: <count>
-- Medium: <count>
-- Low: <count>
-
-**Top Three Priority Actions**
-
-1. <action>
-2. <action>
-3. <action>
-
-**Next Step**
-
-Provide one concise recommended next action.
-
-# Quality Checks
-
-Before completing the report, verify:
-
-1. The complete assessment has been written to the requested file.
-2. Every confirmed finding has evidence.
-3. Assumptions are labeled as assumptions.
-4. Finding counts are internally consistent.
-5. Severity classifications are reasonable.
-6. Compliance status agrees with the detailed findings.
+1. JSON syntax is valid.
+2. `schema_version` is `1.0`.
+3. Every finding has a unique ID.
+4. Every finding has a valid severity.
+5. Requirement IDs are correct when supplied.
+6. Finding evidence is present.
 7. Recommendations are actionable.
-8. Markdown tables are valid.
-9. Mermaid syntax is valid when a diagram is included.
-10. Sensitive values are not copied unnecessarily into the report.
-11. Positive findings are included where appropriate.
-12. The report is readable in GitHub and VS Code Markdown Preview.
+8. Confirmed findings are separated from assumptions.
+9. Live Azure validation is not claimed unless it actually occurred.
+10. No secrets, credentials, tokens, or unnecessary sensitive identifiers are included.
+
+After validation, run the repository renderer.
+
+Do not manually edit the generated Markdown or HTML.

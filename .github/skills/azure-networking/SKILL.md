@@ -1,6 +1,6 @@
 ---
 name: azure-networking
-description: Azure networking architecture, security, connectivity, routing, Private Link, DNS, hybrid connectivity, and resiliency review guidance. Use for Azure network design, assessment, troubleshooting, or infrastructure reviews.
+description: Azure networking architecture, security, connectivity, routing, Private Link, DNS, hybrid connectivity, resiliency, monitoring, and observability review guidance. Use for Azure network design, assessment, troubleshooting, or infrastructure reviews.
 ---
 
 # Azure Networking Review Skill
@@ -13,7 +13,7 @@ The purpose of this skill is technical analysis. Reporting layout and dashboard 
 
 1. Establish the documented target state before identifying gaps.
 2. Validate documentation against the actual infrastructure implementation.
-3. Base findings on repository evidence whenever possible.
+3. Base findings on available evidence, prioritizing repository Infrastructure as Code and authenticated live Azure state where appropriate.
 4. Clearly separate:
    - observed facts
    - documented requirements
@@ -26,6 +26,106 @@ The purpose of this skill is technical analysis. Reporting layout and dashboard 
    - prevent the required solution from functioning
 7. Identify positive implementation decisions as well as deficiencies.
 8. Recommend practical remediation rather than generic best-practice statements.
+9. Assess operational visibility separately from architecture correctness.
+
+A network may be correctly designed but still create operational risk if failures, traffic patterns, routing issues, security events, or connectivity degradation cannot be detected and investigated.
+
+Do not treat the existence of Azure Monitor, Network Watcher, or Log Analytics alone as sufficient monitoring. Validate that relevant telemetry is actually collected, centralized, queryable, and, where required, alerted on.
+
+## Evidence Sources
+
+Use the following evidence sources according to their purpose.
+
+### Target-State Evidence
+
+Use:
+
+- `docs/network-requirements.md`
+- approved architecture documentation
+- security standards
+- explicit user-supplied requirements
+
+Target-state evidence defines what SHOULD exist.
+
+### Implementation Evidence
+
+Use:
+
+- Terraform
+- Bicep
+- ARM templates
+- variables and tfvars
+- outputs
+- data sources
+- remote-state references
+- deployment configuration
+
+Implementation evidence defines what the repository INTENDS to deploy.
+
+### Live Azure Evidence
+
+When authenticated Azure discovery is available, use it to validate what ACTUALLY exists.
+
+Relevant live evidence may include:
+
+- VNets
+- subnets
+- peerings
+- route tables
+- routes
+- firewall resources
+- Private Endpoints
+- Private DNS
+- public IPs
+- ingress components
+- hybrid connectivity resources
+- diagnostic settings
+- monitoring configuration
+
+Do not treat live Azure state as the target-state authority.
+
+If live Azure differs from Infrastructure as Code, record possible configuration drift and assess the difference against the documented target state.
+
+### Platform Context
+
+Shared platform facts may come from:
+
+- `docs/platform-context.md`
+- another platform repository
+- platform outputs
+- Terraform data sources
+- remote state
+- live Azure discovery
+- approved platform documentation
+
+Do not require a specific `platform-context.md` file.
+
+If platform information remains unavailable, classify it as:
+
+`External Dependency — validation required`
+
+or:
+
+`Unable to Validate`
+
+Do not invent missing platform state.
+
+## Live Azure Discovery Guidance
+
+When live Azure discovery tools are available:
+
+1. Inspect the repository first.
+2. Identify the specific deployed-state or platform question requiring validation.
+3. Query only the relevant Azure scope and resource types.
+4. Correlate discovered resources with repository configuration.
+5. Record the evidence used.
+6. Detect configuration drift where repository intent and deployed state differ.
+
+Prefer targeted discovery over broad subscription- or tenant-wide enumeration.
+
+Live discovery is read-only assessment evidence.
+
+Do not create, modify, or delete Azure resources as part of a normal assessment.
 
 # Technical Review Areas
 
@@ -245,17 +345,244 @@ Consider:
 
 Do not invent resiliency requirements that are not documented.
 
+## 14. Monitoring and Observability
+
+Assess whether the network provides sufficient visibility for operations, troubleshooting, security investigation, performance analysis, and incident response.
+
+Monitoring should be evaluated against the architecture and the importance of the network path. Do not require every possible diagnostic setting when there is no documented operational need.
+
+### Network Flow Visibility
+
+Review:
+
+- Virtual Network flow logs
+- Traffic Analytics where appropriate
+- storage and retention of flow telemetry
+- visibility into allowed and denied traffic
+- visibility across important workload networks
+- whether flow-log configuration covers networks that require investigation
+- whether flow telemetry is centralized or accessible to the operational team
+
+Prefer Virtual Network flow logs for new implementations.
+
+Do not recommend creation of new NSG flow logs.
+
+If existing NSG flow logs are discovered, identify migration to Virtual Network flow logs as an operational consideration.
+
+### Azure Firewall Monitoring
+
+When Azure Firewall is present, review:
+
+- diagnostic settings
+- Log Analytics integration
+- network rule logs
+- application rule logs
+- NAT rule logs where applicable
+- threat intelligence logs
+- IDPS logs where applicable
+- DNS proxy/query logs where relevant
+- firewall platform metrics
+- alerting for meaningful health or operational conditions
+
+Where Log Analytics is used, prefer resource-specific Azure Firewall tables when appropriate rather than relying only on the legacy `AzureDiagnostics` table.
+
+Do not assume Azure Firewall logging is enabled simply because the firewall exists.
+
+### Connectivity Monitoring
+
+For important connectivity paths, assess whether continuous or periodic reachability monitoring is appropriate.
+
+Examples include:
+
+- spoke-to-hub connectivity
+- workload-to-shared-services connectivity
+- workload-to-Private-Endpoint connectivity
+- Azure-to-on-premises connectivity
+- on-premises-to-Azure connectivity
+- connectivity through Azure Firewall or an NVA
+- connectivity to critical application endpoints
+
+Where appropriate, consider Azure Network Watcher Connection Monitor or an equivalent monitoring mechanism.
+
+Review whether monitoring can detect:
+
+- loss of reachability
+- increased latency
+- packet loss
+- degradation of important network paths
+
+Do not require Connection Monitor for every network path.
+
+Prioritize business-critical and operationally important connectivity.
+
+### Hybrid Connectivity Monitoring
+
+Where ExpressRoute or VPN is used, review monitoring for:
+
+- connection health
+- gateway health
+- tunnel state
+- BGP/session health where observable
+- traffic levels
+- connectivity degradation
+- redundancy/failover paths
+- loss of hybrid reachability
+
+If hybrid connectivity is externally managed, identify monitoring responsibility as an external dependency when its configuration cannot be validated.
+
+### DNS Monitoring
+
+Where DNS is a critical dependency, review operational visibility for:
+
+- DNS resolution failures
+- Private DNS integration
+- DNS forwarding failures
+- Azure DNS Private Resolver where present
+- enterprise DNS dependencies
+- DNS query logging where supported and operationally required
+
+Do not assume that successful Private Endpoint creation proves DNS is operating correctly.
+
+### Platform Diagnostic Settings
+
+Review diagnostic settings for network resources where operational visibility is required.
+
+Examples may include:
+
+- Azure Firewall
+- Application Gateway
+- VPN Gateway
+- ExpressRoute Gateway
+- NAT Gateway
+- Azure DNS Private Resolver
+- Front Door
+- Load Balancer
+- network security and connectivity services
+
+Determine whether logs and metrics are sent to an appropriate destination such as:
+
+- Log Analytics
+- Storage
+- Event Hub
+- an approved SIEM or monitoring platform
+
+Do not require every diagnostic category by default.
+
+The selected telemetry should support the documented operational, security, troubleshooting, and retention requirements.
+
+### Metrics and Alerting
+
+Assess whether meaningful network conditions have monitoring and alerting.
+
+Examples include:
+
+- connectivity loss
+- gateway or tunnel health degradation
+- firewall health
+- unusual traffic patterns
+- packet loss
+- latency degradation
+- capacity or throughput concerns
+- resource health events
+- failure of important network dependencies
+
+Distinguish between:
+
+1. telemetry being collected
+2. telemetry being queried
+3. meaningful alerting being configured
+
+The existence of logs does not mean the environment is actively monitored.
+
+### Centralized Monitoring
+
+Where a centralized operational model is expected, review:
+
+- Log Analytics workspace integration
+- central monitoring architecture
+- cross-subscription visibility
+- retention requirements
+- access to monitoring data
+- SIEM integration where relevant
+- separation of platform and workload monitoring responsibilities
+
+If the monitoring platform is managed outside the repository, record it as an external dependency rather than marking monitoring as absent without evidence.
+
+### Network Troubleshooting Capability
+
+Assess whether operators have sufficient capability to diagnose incidents.
+
+Consider:
+
+- Network Watcher
+- Connection Monitor
+- IP flow verification
+- next-hop validation
+- effective routes
+- effective NSG rules
+- packet capture where appropriate
+- VPN troubleshooting
+- flow logs
+- Traffic Analytics
+
+These capabilities do not all need to be permanently configured.
+
+Differentiate between:
+
+- continuous monitoring controls
+- diagnostic capabilities used during troubleshooting
+
+### Monitoring Evidence
+
+Monitoring findings should reference evidence such as:
+
+- diagnostic setting resources
+- Terraform diagnostic-setting configuration
+- flow-log resources
+- Log Analytics workspace references
+- Azure Monitor alert rules
+- Connection Monitor resources
+- monitoring requirements in documentation
+- missing monitoring configuration confirmed by repository search
+
+If monitoring may be implemented outside the repository, classify it as `Unable to Validate` or as an external dependency rather than a confirmed defect.
+
 # Finding Evidence
 
 Every finding should include evidence such as:
 
+- requirement ID
 - file path
 - Terraform/Bicep resource
 - relevant property
 - documented requirement
 - missing configuration confirmed by repository search
+- live Azure resource or property when authenticated discovery was performed
+- difference between repository intent and deployed Azure state where drift was detected
 
 If evidence is unavailable, classify the item as an assumption or validation requirement rather than a confirmed defect.
+
+# Configuration Drift
+
+When authenticated live Azure discovery is available, compare deployed state with repository Infrastructure as Code.
+
+Examples of potential drift include:
+
+- deployed route differs from Terraform
+- missing or additional peering
+- public network access differs from declared configuration
+- Private Endpoint exists in only one evidence source
+- DNS links differ from repository intent
+- diagnostic settings differ from IaC
+- network-security configuration changed outside the repository
+
+Configuration drift is not automatically a defect.
+
+Assess the deployed difference against the target-state requirements.
+
+If repository intent is compliant but deployed state is not, report the deployed drift as a finding.
+
+If deployed state is compliant but repository intent is not, report the repository inconsistency because a future deployment could reintroduce the non-compliant state.
 
 # Severity Guidance
 
@@ -279,6 +606,7 @@ Use for issues that:
 - prevent required private connectivity
 - prevent required hybrid connectivity
 - create significant DNS or routing failure
+- leave critical network paths without required operational visibility when this creates significant incident-response risk
 
 ## Medium
 
@@ -288,6 +616,7 @@ Use for issues that:
 - leave network controls incomplete
 - create resiliency concerns
 - partially violate requirements
+- leave important monitoring, diagnostic, or alerting controls incomplete
 - should be remediated but do not create immediate severe impact
 
 ## Low
@@ -298,6 +627,7 @@ Use for:
 - consistency improvements
 - documentation gaps
 - low-impact best-practice improvements
+- non-critical monitoring improvements
 
 Do not inflate severity.
 
@@ -314,3 +644,13 @@ Capture correctly implemented decisions when supported by evidence, such as:
 - least-privilege network rules
 - correct public-network restrictions
 - clear separation of platform and workload responsibilities
+- appropriate Virtual Network flow logging
+- centralized diagnostic logging
+- appropriate Azure Firewall telemetry
+- meaningful network health alerts
+- monitoring of critical connectivity paths
+- appropriate hybrid connectivity monitoring
+- suitable telemetry retention
+- clear separation of monitoring responsibilities
+- repository and deployed Azure network state are aligned
+- shared platform dependencies are positively validated through live Azure evidence where available

@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Azure Networking Assessment</title>
+  <style>
+    :root {
+      --page-bg: #f4f7fb;
+      --surface: #ffffff;
+      --surface-alt: #f8fafc;
+      --border: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --navy: #0b1f33;
+      --navy-soft: #12314f;
+      --azure: #0078d4;
+      --azure-dark: #005a9e;
+      --azure-soft: #e8f3fc;
+      --critical: #b42318;
+      --critical-bg: #fef3f2;
+      --high: #d92d20;
+      --high-bg: #fef3f2;
+      --medium: #b54708;
+      --medium-bg: #fffaeb;
+      --low: #175cd3;
+      --low-bg: #eff8ff;
+      --healthy: #067647;
+      --healthy-bg: #ecfdf3;
+      --neutral: #475467;
+      --neutral-bg: #f2f4f7;
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--page-bg);
+      color: var(--text-primary);
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.55;
+    }
+
+    .report-header {
+      background: var(--navy);
+      color: #fff;
+      border-bottom: 4px solid var(--azure);
+    }
+
+    .header-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 30px 24px 26px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .header-kicker {
+      color: #9fc9eb;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+    }
+
+    .header-subtitle {
+      margin: 9px 0 0;
+      color: #d6e4f0;
+      max-width: 760px;
+      font-size: 15px;
+    }
+
+    .header-meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(110px, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .header-meta-item {
+      border-top: 1px solid rgba(255,255,255,.16);
+      padding-top: 10px;
+    }
+
+    .header-meta-label {
+      color: #9fb4c7;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-weight: 700;
+    }
+
+    .header-meta-value {
+      margin-top: 3px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .dashboard-shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 28px 24px 56px;
+    }
+
+    .status-banner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--azure);
+      border-radius: 12px;
+      padding: 20px 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .status-banner.danger { border-left-color: var(--high); }
+    .status-banner.warning { border-left-color: var(--medium); }
+    .status-banner.success { border-left-color: var(--healthy); }
+
+    .status-label {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-copy h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+
+    .status-copy p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 4px solid var(--neutral);
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric-card.critical { border-top-color: var(--critical); }
+    .metric-card.high { border-top-color: var(--high); }
+    .metric-card.medium { border-top-color: var(--medium); }
+    .metric-card.low { border-top-color: var(--low); }
+
+    .metric-label {
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .metric-value {
+      font-size: 32px;
+      line-height: 1.1;
+      font-weight: 750;
+      margin-top: 5px;
+    }
+
+    .metric-card.critical .metric-value { color: var(--critical); }
+    .metric-card.high .metric-value { color: var(--high); }
+    .metric-card.medium .metric-value { color: var(--medium); }
+    .metric-card.low .metric-value { color: var(--low); }
+
+    .metric-caption {
+      color: var(--text-muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .section { margin-top: 28px; }
+
+    .section-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    .eyebrow {
+      display: block;
+      color: var(--azure-dark);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 21px;
+      letter-spacing: -.01em;
+    }
+
+    h3 { margin: 0 0 6px; font-size: 16px; }
+    h4 { margin: 0 0 6px; font-size: 13px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .executive-card { padding: 22px; }
+    .executive-card p { margin: 0; color: var(--text-secondary); }
+
+    .priority-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .priority-card {
+      display: flex;
+      gap: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .priority-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: var(--azure-soft);
+      color: var(--azure-dark);
+      font-weight: 800;
+    }
+
+    .priority-meta {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 4px;
+    }
+
+    .priority-card p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .architecture-card { padding: 20px; }
+    .lead-small { margin: 0 0 16px; color: var(--text-secondary); }
+
+    .component-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 14px 0 18px;
+    }
+
+    .component-chip {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 8px 11px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .flow-list {
+      border-top: 1px solid var(--border);
+      margin-top: 12px;
+      padding-top: 12px;
+    }
+
+    .flow-row {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .flow-row:last-child { border-bottom: 0; }
+
+    .flow-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 9px;
+    }
+
+    .flow-path {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .flow-node {
+      background: var(--azure-soft);
+      color: var(--azure-dark);
+      border: 1px solid #cce5f7;
+      border-radius: 8px;
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .flow-arrow { color: var(--text-muted); font-weight: 700; }
+
+    .findings-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    details.finding-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--neutral);
+      border-radius: 11px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    details.severity-critical { border-left-color: var(--critical); }
+    details.severity-high { border-left-color: var(--high); }
+    details.severity-medium { border-left-color: var(--medium); }
+    details.severity-low { border-left-color: var(--low); }
+
+    summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 15px 17px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    summary:focus-visible {
+      outline: 3px solid rgba(0,120,212,.28);
+      outline-offset: -3px;
+    }
+
+    .finding-summary-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .finding-summary-right {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .finding-kicker {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .finding-title { font-size: 14px; font-weight: 700; }
+
+    .severity-badge,
+    .pill,
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .severity-badge.critical { color: var(--critical); background: var(--critical-bg); }
+    .severity-badge.high { color: var(--high); background: var(--high-bg); }
+    .severity-badge.medium { color: var(--medium); background: var(--medium-bg); }
+    .severity-badge.low { color: var(--low); background: var(--low-bg); }
+
+    .pill.danger { color: var(--high); background: var(--high-bg); }
+    .pill.warning { color: var(--medium); background: var(--medium-bg); }
+    .pill.success { color: var(--healthy); background: var(--healthy-bg); }
+    .pill.neutral { color: var(--neutral); background: var(--neutral-bg); }
+    .pill.info { color: var(--low); background: var(--low-bg); }
+
+    .meta-chip {
+      color: var(--text-secondary);
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+    }
+
+    .finding-body {
+      border-top: 1px solid var(--border);
+      padding: 18px;
+      background: #fcfdff;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 12px;
+    }
+
+    .detail-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 13px;
+    }
+
+    .detail-block p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .evidence-block { margin-top: 12px; }
+
+    .evidence-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .evidence-list li {
+      margin: 7px 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .evidence-list code {
+      display: inline-block;
+      margin-right: 7px;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .92em;
+      background: #eef2f7;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: 1px 5px;
+    }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      text-align: left;
+      background: var(--surface-alt);
+      color: var(--text-secondary);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      padding: 11px 13px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 11px 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      color: var(--text-secondary);
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .positive-card { padding: 8px 18px; }
+
+    .positive-item {
+      display: flex;
+      gap: 11px;
+      align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .positive-item:last-child { border-bottom: 0; }
+
+    .positive-item p {
+      margin: 3px 0 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .checkmark {
+      min-width: 25px;
+      height: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--healthy-bg);
+      color: var(--healthy);
+      font-weight: 800;
+    }
+
+    .empty-state {
+      padding: 20px;
+      color: var(--text-secondary);
+    }
+
+    footer {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 24px 34px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .priority-grid { grid-template-columns: 1fr; }
+      .header-meta { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .header-inner, .dashboard-shell, footer { padding-left: 16px; padding-right: 16px; }
+      .header-top { flex-direction: column; }
+      h1 { font-size: 27px; }
+      .metric-grid { grid-template-columns: 1fr; }
+      .detail-grid { grid-template-columns: 1fr; }
+      summary { align-items: flex-start; flex-direction: column; }
+      .finding-summary-right { justify-content: flex-start; }
+      .header-meta { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .report-header { background: #fff; color: #000; border-bottom: 2px solid #000; }
+      .header-subtitle, .header-meta-label { color: #444; }
+      .header-meta-value, .header-kicker { color: #000; }
+      .dashboard-shell { max-width: none; padding: 20px 0; }
+      .card, .metric-card, .priority-card, details.finding-card { box-shadow: none; }
+      details { break-inside: avoid; }
+      details > * { display: block; }
+      footer { max-width: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="report-header">
+    <div class="header-inner">
+      <div class="header-top">
+        <div>
+          <div class="header-kicker">Azure Networking · Zero Trust Assessment</div>
+          <h1>Azure Networking Assessment</h1>
+          <p class="header-subtitle">Repository IaC assessment of infra/</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div class="header-meta-item">
+          <div class="header-meta-label">Environment</div>
+          <div class="header-meta-value">Test</div>
+        </div>
+        <div class="header-meta-item">
+          <div class="header-meta-label">Region</div>
+          <div class="header-meta-value">Canada Central (Terraform default)</div>
+        </div>
+        <div class="header-meta-item">
+          <div class="header-meta-label">Assessment Date</div>
+          <div class="header-meta-value">2026-10-06</div>
+        </div>
+        <div class="header-meta-item">
+          <div class="header-meta-label">Live Azure Validation</div>
+          <div class="header-meta-value">No</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-shell">
+    <section class="status-banner danger">
+      <span class="status-label pill danger">Action Required</span>
+      <div class="status-copy">
+        <h2>Overall Assessment</h2>
+        <p>The Terraform defines useful workload subnet separation and a correctly targeted Storage blob Private Endpoint, but the intended traffic paths do not meet the documented Zero Trust baseline. The application subnet explicitly routes Internet traffic directly to the Internet, the management NSG authorizes Internet-sourced RDP, and backend PaaS services retain unrestricted public access. Private DNS integration is incomplete, the repository creates its own hub instead of consuming a validated platform hub, and no network telemetry or alerting is defined. Remediation should first remove direct egress and administrative exposure, then establish private-only PaaS connectivity through the approved shared platform.</p>
+      </div>
+    </section>
+
+    <section class="metric-grid" aria-label="Severity summary">
+      
+        <article class="metric-card critical">
+          <div class="metric-label">Critical</div>
+          <div class="metric-value">0</div>
+          <div class="metric-caption">findings</div>
+        </article>
+        
+        <article class="metric-card high">
+          <div class="metric-label">High</div>
+          <div class="metric-value">5</div>
+          <div class="metric-caption">findings</div>
+        </article>
+        
+        <article class="metric-card medium">
+          <div class="metric-label">Medium</div>
+          <div class="metric-value">2</div>
+          <div class="metric-caption">findings</div>
+        </article>
+        
+        <article class="metric-card low">
+          <div class="metric-label">Low</div>
+          <div class="metric-value">0</div>
+          <div class="metric-caption">findings</div>
+        </article>
+        
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Summary</span>
+          <h2>Executive Summary</h2>
+        </div>
+      </div>
+      <div class="card executive-card">
+        <p>The Terraform defines useful workload subnet separation and a correctly targeted Storage blob Private Endpoint, but the intended traffic paths do not meet the documented Zero Trust baseline. The application subnet explicitly routes Internet traffic directly to the Internet, the management NSG authorizes Internet-sourced RDP, and backend PaaS services retain unrestricted public access. Private DNS integration is incomplete, the repository creates its own hub instead of consuming a validated platform hub, and no network telemetry or alerting is defined. Remediation should first remove direct egress and administrative exposure, then establish private-only PaaS connectivity through the approved shared platform.</p>
+      </div>
+    </section>
+
+    
+        <section class="section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Assessment</span>
+              <h2>Scorecard</h2>
+            </div>
+          </div>
+          <div class="card table-wrap">
+            <table>
+              <thead><tr><th>Area</th><th>Status</th><th>Summary</th></tr></thead>
+              <tbody><tr><td>Network Topology</td><td><span class='pill danger'>Action Required</span></td><td>The workload creates a local hub and only one peering direction; approved platform connectivity is not established.</td></tr><tr><td>Routing &amp; Egress</td><td><span class='pill danger'>Action Required</span></td><td>The application subnet default route bypasses central inspection and uses the Internet next hop.</td></tr><tr><td>Network Security</td><td><span class='pill danger'>Action Required</span></td><td>Internet-sourced RDP is authorized and east-west controls do not demonstrate least privilege.</td></tr><tr><td>Private Connectivity</td><td><span class='pill danger'>Action Required</span></td><td>Storage and Key Vault retain public access; Key Vault has no Private Endpoint.</td></tr><tr><td>DNS</td><td><span class='pill danger'>Action Required</span></td><td>The Storage private zone has no VNet link or Private DNS zone group.</td></tr><tr><td>Monitoring &amp; Observability</td><td><span class='pill danger'>Action Required</span></td><td>No flow logs, diagnostic settings, connectivity monitors, or alerts are declared.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        
+    
+        <section class="section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Remediation</span>
+              <h2>Top Priority Actions</h2>
+            </div>
+          </div>
+          <div class="priority-grid">
+                <article class="priority-card">
+                  <div class="priority-number">P1</div>
+                  <div>
+                    <div class="priority-meta">NET-001 · Routing &amp; Egress</div>
+                    <h3>Application egress bypasses central inspection</h3>
+                    <p>Obtain the approved platform firewall or NVA next-hop configuration, replace the Internet default route with the approved VirtualAppliance path, and validate effective and return routes before deployment.</p>
+                  </div>
+                </article>
+                
+                <article class="priority-card">
+                  <div class="priority-number">P1</div>
+                  <div>
+                    <div class="priority-meta">NET-002 · Network Security</div>
+                    <h3>Management subnet authorizes Internet-sourced RDP</h3>
+                    <p>Remove the Internet-to-RDP rule and permit administration only through the approved Bastion, private management, or Entra Private Access path, scoped to required sources and destinations.</p>
+                  </div>
+                </article>
+                
+                <article class="priority-card">
+                  <div class="priority-number">P1</div>
+                  <div>
+                    <div class="priority-meta">NET-003 · Private Connectivity</div>
+                    <h3>Backend PaaS services retain unrestricted public access</h3>
+                    <p>Set Storage public access to disabled after validating private access, add an approved Key Vault Private Endpoint and DNS integration, disable Key Vault public access, and add only explicitly approved exceptions if required.</p>
+                  </div>
+                </article>
+                </div>
+        </section>
+        
+    
+        <section class="section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Design</span>
+              <h2>Architecture Overview</h2>
+            </div>
+          </div>
+          <div class="card architecture-card">
+            <p class="lead-small">The repository deploys separate hub and application VNets in one resource group. The application VNet contains application, Private Endpoint, and management subnets, with only application-to-hub peering. The application subnet has an NSG and a route table; management has an NSG; Storage has a blob Private Endpoint; Key Vault remains public.</p>
+            <div class='component-grid'><div class='component-chip'>Repository-managed hub VNet</div><div class='component-chip'>Application spoke VNet</div><div class='component-chip'>Application subnet</div><div class='component-chip'>Private Endpoint subnet</div><div class='component-chip'>Management subnet</div><div class='component-chip'>Storage account and blob Private Endpoint</div><div class='component-chip'>Key Vault</div><div class='component-chip'>Application route table</div><div class='component-chip'>Application and management NSGs</div></div>
+            <div class='flow-list'>
+                    <div class="flow-row">
+                      <div class="flow-head">
+                        <strong>Internet egress</strong>
+                        <span class="pill info">Non-compliant</span>
+                      </div>
+                      <div class="flow-path"><span class='flow-node'>Application subnet</span><span class='flow-arrow'>→</span><span class='flow-node'>0.0.0.0/0 route</span><span class='flow-arrow'>→</span><span class='flow-node'>Internet</span></div>
+                    </div>
+                    
+                    <div class="flow-row">
+                      <div class="flow-head">
+                        <strong>Hub connectivity</strong>
+                        <span class="pill info">Incomplete</span>
+                      </div>
+                      <div class="flow-path"><span class='flow-node'>Application VNet</span><span class='flow-arrow'>→</span><span class='flow-node'>One-way peering</span><span class='flow-arrow'>→</span><span class='flow-node'>Repository-managed hub VNet</span></div>
+                    </div>
+                    
+                    <div class="flow-row">
+                      <div class="flow-head">
+                        <strong>Storage blob access</strong>
+                        <span class="pill info">DNS integration incomplete; public fallback enabled</span>
+                      </div>
+                      <div class="flow-path"><span class='flow-node'>Approved client</span><span class='flow-arrow'>→</span><span class='flow-node'>Storage blob Private Endpoint</span><span class='flow-arrow'>→</span><span class='flow-node'>Storage account</span></div>
+                    </div>
+                    </div>
+          </div>
+        </section>
+        
+
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Evidence</span>
+          <h2>Detailed Findings</h2>
+        </div>
+      </div>
+      <div class="findings-list">
+        
+            <details class="finding-card severity-high">
+              <summary>
+                <div class="finding-summary-left">
+                  <span class="severity-badge high">High</span>
+                  <div>
+                    <div class="finding-kicker">NET-001 · Routing &amp; Egress</div>
+                    <div class="finding-title">Application egress bypasses central inspection</div>
+                  </div>
+                </div>
+                <div class="finding-summary-right">
+                  <span class='meta-chip'>NET-FW-002</span>
+                  <span class="meta-chip">P1</span>
+                </div>
+              </summary>
+              <div class="finding-body">
+                <div class="detail-grid">
+                  <div class="detail-block">
+                    <h4>Observed State</h4>
+                    <p>Internet-bound application traffic is intentionally routed directly to the Internet; no approved firewall or NVA next hop is referenced.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Expected State</h4>
+                    <p>Internet egress must traverse the approved central inspection layer, and workload routes must not introduce a direct Internet bypass.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Risk</h4>
+                    <p>Workload egress can avoid centrally governed filtering, threat detection, logging, and destination controls.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Recommendation</h4>
+                    <p>Obtain the approved platform firewall or NVA next-hop configuration, replace the Internet default route with the approved VirtualAppliance path, and validate effective and return routes before deployment.</p>
+                  </div>
+                </div>
+                <div class="detail-block evidence-block">
+                  <h4>Evidence</h4>
+                  <ul class="evidence-list"><li><code>infra/routing.tf</code><span>The application route table defines 0.0.0.0/0 with next_hop_type set to Internet and associates it with the application subnet.</span></li></ul>
+                </div>
+                <div class='detail-block'><h4>Dependencies / Considerations</h4><ul><li>Platform-provided central inspection next-hop address and routing design</li></ul></div>
+              </div>
+            </details>
+            
+            <details class="finding-card severity-high">
+              <summary>
+                <div class="finding-summary-left">
+                  <span class="severity-badge high">High</span>
+                  <div>
+                    <div class="finding-kicker">NET-002 · Network Security</div>
+                    <div class="finding-title">Management subnet authorizes Internet-sourced RDP</div>
+                  </div>
+                </div>
+                <div class="finding-summary-right">
+                  <span class='meta-chip'>NET-NSG-003</span>
+                  <span class="meta-chip">P1</span>
+                </div>
+              </summary>
+              <div class="finding-body">
+                <div class="detail-grid">
+                  <div class="detail-block">
+                    <h4>Observed State</h4>
+                    <p>The subnet policy permits direct RDP from the Internet if a routable public ingress path exists. No public IP resource was found in this repository, so deployed reachability was not validated.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Expected State</h4>
+                    <p>Administrative access must use an approved controlled path and administrative ports must not be authorized directly from the public Internet without an approved exception.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Risk</h4>
+                    <p>A present or future public ingress path could expose privileged administration to password attacks and remote exploitation.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Recommendation</h4>
+                    <p>Remove the Internet-to-RDP rule and permit administration only through the approved Bastion, private management, or Entra Private Access path, scoped to required sources and destinations.</p>
+                  </div>
+                </div>
+                <div class="detail-block evidence-block">
+                  <h4>Evidence</h4>
+                  <ul class="evidence-list"><li><code>infra/security.tf</code><span>The management NSG allows TCP/3389 from the Internet service tag to any destination in the subnet.</span></li><li><code>infra/network.tf</code><span>The management NSG is associated with the dedicated management subnet.</span></li></ul>
+                </div>
+                <div class='detail-block'><h4>Dependencies / Considerations</h4><ul><li>Confirmation of the organization-approved administrative access path</li></ul></div>
+              </div>
+            </details>
+            
+            <details class="finding-card severity-high">
+              <summary>
+                <div class="finding-summary-left">
+                  <span class="severity-badge high">High</span>
+                  <div>
+                    <div class="finding-kicker">NET-003 · Private Connectivity</div>
+                    <div class="finding-title">Backend PaaS services retain unrestricted public access</div>
+                  </div>
+                </div>
+                <div class="finding-summary-right">
+                  <span class='meta-chip'>NET-PE-002</span>
+                  <span class="meta-chip">P1</span>
+                </div>
+              </summary>
+              <div class="finding-body">
+                <div class="detail-grid">
+                  <div class="detail-block">
+                    <h4>Observed State</h4>
+                    <p>Storage can be accessed through its public endpoint from unrestricted networks, and Key Vault is public-only in the declared implementation.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Expected State</h4>
+                    <p>Sensitive backend PaaS services must use approved private connectivity and disable or restrict unrequired public access without public fallback.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Risk</h4>
+                    <p>Public data-plane endpoints expand the attack surface and allow clients to bypass workload routing, segmentation, and private DNS controls.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Recommendation</h4>
+                    <p>Set Storage public access to disabled after validating private access, add an approved Key Vault Private Endpoint and DNS integration, disable Key Vault public access, and add only explicitly approved exceptions if required.</p>
+                  </div>
+                </div>
+                <div class="detail-block evidence-block">
+                  <h4>Evidence</h4>
+                  <ul class="evidence-list"><li><code>infra/storage.tf</code><span>Storage public network access is enabled and network_rules.default_action is Allow despite the blob Private Endpoint.</span></li><li><code>infra/keyvault.tf</code><span>Key Vault public network access is enabled and no Key Vault Private Endpoint is declared.</span></li></ul>
+                </div>
+                <div class='detail-block'><h4>Dependencies / Considerations</h4><ul><li>Confirmation of workload data sensitivity and approved PaaS access sources</li></ul></div>
+              </div>
+            </details>
+            
+            <details class="finding-card severity-high">
+              <summary>
+                <div class="finding-summary-left">
+                  <span class="severity-badge high">High</span>
+                  <div>
+                    <div class="finding-kicker">NET-004 · DNS</div>
+                    <div class="finding-title">Storage Private Endpoint DNS integration is incomplete</div>
+                  </div>
+                </div>
+                <div class="finding-summary-right">
+                  <span class='meta-chip'>NET-DNS-001</span>
+                  <span class="meta-chip">P2</span>
+                </div>
+              </summary>
+              <div class="finding-body">
+                <div class="detail-grid">
+                  <div class="detail-block">
+                    <h4>Observed State</h4>
+                    <p>The private zone is neither attached to the Private Endpoint for record registration nor linked to a VNet for resolution.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Expected State</h4>
+                    <p>Approved clients must resolve the Storage service name to the Private Endpoint address through the enterprise DNS design, without creating conflicting DNS authority.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Risk</h4>
+                    <p>Clients can resolve the public Storage endpoint instead of the private address, fail private connectivity, or depend on the currently enabled public fallback.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Recommendation</h4>
+                    <p>Confirm whether the private zone is platform-owned. Reference the approved shared zone when available, add the Private DNS zone group, and implement the required VNet link or enterprise DNS forwarding path.</p>
+                  </div>
+                </div>
+                <div class="detail-block evidence-block">
+                  <h4>Evidence</h4>
+                  <ul class="evidence-list"><li><code>infra/storage.tf</code><span>A privatelink.blob.core.windows.net zone is created, but the Private Endpoint has no private_dns_zone_group.</span></li><li><code>infra/</code><span>No azurerm_private_dns_zone_virtual_network_link resource is declared.</span></li></ul>
+                </div>
+                <div class='detail-block'><h4>Dependencies / Considerations</h4><ul><li>Platform confirmation of Private DNS zone ownership and resolver integration</li></ul></div>
+              </div>
+            </details>
+            
+            <details class="finding-card severity-high">
+              <summary>
+                <div class="finding-summary-left">
+                  <span class="severity-badge high">High</span>
+                  <div>
+                    <div class="finding-kicker">NET-005 · Network Topology</div>
+                    <div class="finding-title">Workload repository creates an incomplete local hub</div>
+                  </div>
+                </div>
+                <div class="finding-summary-right">
+                  <span class='meta-chip'>NET-TOPO-001</span>
+                  <span class="meta-chip">P2</span>
+                </div>
+              </summary>
+              <div class="finding-body">
+                <div class="detail-grid">
+                  <div class="detail-block">
+                    <h4>Observed State</h4>
+                    <p>The repository creates a nominal hub with no central firewall, DNS, gateway, or reverse peering, rather than integrating with validated platform connectivity.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Expected State</h4>
+                    <p>The workload must consume the approved Azure Landing Zone connectivity platform and must not recreate an enterprise hub or other shared connectivity service.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Risk</h4>
+                    <p>The spoke can be isolated from shared services or connected through an ungoverned topology that lacks inspection, return connectivity, DNS, and hybrid routes.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Recommendation</h4>
+                    <p>Remove the workload-owned hub after obtaining the approved platform VNet or Virtual WAN identifiers, establish all platform-owned and workload-owned directional connections with the required forwarded-traffic settings, and validate effective routes.</p>
+                  </div>
+                </div>
+                <div class="detail-block evidence-block">
+                  <h4>Evidence</h4>
+                  <ul class="evidence-list"><li><code>infra/network.tf</code><span>The workload declares both hub and application VNets and only an application-to-hub peering.</span></li><li><code>infra/outputs.tf</code><span>The locally created hub VNet is exposed as a workload output rather than referenced as an existing platform service.</span></li><li><code>docs/platform-context.md</code><span>Workloads are expected to consume centrally managed connectivity capabilities instead of recreating them.</span></li></ul>
+                </div>
+                <div class='detail-block'><h4>Dependencies / Considerations</h4><ul><li>Platform hub or Virtual WAN identifiers and peering ownership model</li></ul></div>
+              </div>
+            </details>
+            
+            <details class="finding-card severity-medium">
+              <summary>
+                <div class="finding-summary-left">
+                  <span class="severity-badge medium">Medium</span>
+                  <div>
+                    <div class="finding-kicker">NET-006 · Network Security</div>
+                    <div class="finding-title">East-west least-privilege controls are not established</div>
+                  </div>
+                </div>
+                <div class="finding-summary-right">
+                  <span class='meta-chip'>NET-NSG-004</span>
+                  <span class="meta-chip">P2</span>
+                </div>
+              </summary>
+              <div class="finding-body">
+                <div class="detail-grid">
+                  <div class="detail-block">
+                    <h4>Observed State</h4>
+                    <p>Default Azure VNet rules remain the principal east-west policy, and the implementation does not encode required flows among application, management, and Private Endpoint boundaries.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Expected State</h4>
+                    <p>Network controls must allow only documented workload flows and limit lateral movement between materially different security boundaries.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Risk</h4>
+                    <p>A compromised resource may have broader connectivity to management or backend endpoints than the application requires.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Recommendation</h4>
+                    <p>Document required flows, associate an approved NSG policy with each applicable subnet, replace broad sources and destinations with approved ingress and workload prefixes or service tags, and add explicit higher-priority denies where needed.</p>
+                  </div>
+                </div>
+                <div class="detail-block evidence-block">
+                  <h4>Evidence</h4>
+                  <ul class="evidence-list"><li><code>infra/security.tf</code><span>Only application and management subnets have NSG associations; no explicit required east-west flows or deny controls are defined.</span></li><li><code>infra/network.tf</code><span>The Private Endpoint subnet has no NSG association, and all three subnets share one VNet.</span></li><li><code>infra/security.tf</code><span>The application inbound HTTPS rule uses Internet as source and any subnet destination rather than a named approved ingress path.</span></li></ul>
+                </div>
+                <div class='detail-block'><h4>Dependencies / Considerations</h4><ul><li>Required application, management, and Private Endpoint traffic-flow matrix</li></ul></div>
+              </div>
+            </details>
+            
+            <details class="finding-card severity-medium">
+              <summary>
+                <div class="finding-summary-left">
+                  <span class="severity-badge medium">Medium</span>
+                  <div>
+                    <div class="finding-kicker">NET-007 · Monitoring &amp; Observability</div>
+                    <div class="finding-title">Network security telemetry and alerting are absent</div>
+                  </div>
+                </div>
+                <div class="finding-summary-right">
+                  <span class='meta-chip'>NET-MON-001</span>
+                  <span class="meta-chip">P3</span>
+                </div>
+              </summary>
+              <div class="finding-body">
+                <div class="detail-grid">
+                  <div class="detail-block">
+                    <h4>Observed State</h4>
+                    <p>The workload IaC does not provide flow visibility, network diagnostic integration, critical-path monitoring, or meaningful network alerts.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Expected State</h4>
+                    <p>Network-security telemetry must support detection and investigation, critical resources must integrate with approved monitoring, and material failures must produce meaningful alerts.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Risk</h4>
+                    <p>Operators may be unable to detect bypass, investigate denied or allowed flows, or identify connectivity degradation promptly.</p>
+                  </div>
+                  <div class="detail-block">
+                    <h4>Recommendation</h4>
+                    <p>Integrate applicable network resources with the approved central monitoring destination, enable supported VNet flow visibility where operationally justified, and define alerts or connectivity tests for material workload paths.</p>
+                  </div>
+                </div>
+                <div class="detail-block evidence-block">
+                  <h4>Evidence</h4>
+                  <ul class="evidence-list"><li><code>infra/</code><span>No diagnostic settings, Virtual Network flow logs, Connection Monitor resources, metric alerts, or Log Analytics integration are declared.</span></li></ul>
+                </div>
+                <div class='detail-block'><h4>Dependencies / Considerations</h4><ul><li>Platform monitoring workspace or SIEM destination</li><li>Operational definition of business-critical connectivity paths</li></ul></div>
+              </div>
+            </details>
+            
+      </div>
+    </section>
+
+    
+        <section class="section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Controls</span>
+              <h2>Requirements Compliance</h2>
+            </div>
+          </div>
+          <div class="card table-wrap">
+            <table>
+              <thead><tr><th>Requirement</th><th>Status</th><th>Evidence</th><th>Notes</th></tr></thead>
+              <tbody><tr><td><code>NET-TOPO-001</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/network.tf</td><td>A local hub is created and approved platform connectivity is not referenced.</td></tr><tr><td><code>NET-TOPO-002</code></td><td><span class='pill success'>Met</span></td><td>infra/network.tf</td><td>The workload uses a dedicated application VNet.</td></tr><tr><td><code>NET-TOPO-003</code></td><td><span class='pill warning'>Partially Met</span></td><td>infra/network.tf; infra/security.tf</td><td>Subnets are separated by purpose, but enforceable least-privilege controls are incomplete.</td></tr><tr><td><code>NET-TOPO-004</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/network.tf; docs/platform-context.md</td><td>The workload recreates a hub instead of consuming confirmed shared connectivity.</td></tr><tr><td><code>NET-IP-001</code></td><td><span class='pill neutral'>Unable to Validate</span></td><td>infra/network.tf</td><td>The declared hub and application ranges do not overlap each other, but connected platform and on-premises ranges are unavailable.</td></tr><tr><td><code>NET-SNET-001</code></td><td><span class='pill warning'>Partially Met</span></td><td>infra/network.tf; infra/security.tf</td><td>Application, management, and Private Endpoint subnets are separate, but their boundaries are not fully enforced.</td></tr><tr><td><code>NET-SNET-002</code></td><td><span class='pill warning'>Partially Met</span></td><td>infra/storage.tf</td><td>The Storage endpoint uses a dedicated subnet; platform approval of that subnet model is unavailable.</td></tr><tr><td><code>NET-NSG-001</code></td><td><span class='pill warning'>Partially Met</span></td><td>infra/security.tf</td><td>NSGs exist for two subnets, but the rules do not demonstrate least privilege.</td></tr><tr><td><code>NET-NSG-003</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/security.tf</td><td>The management NSG authorizes Internet-sourced RDP.</td></tr><tr><td><code>NET-NSG-004</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/security.tf</td><td>Required east-west flows and restrictive segmentation rules are not encoded.</td></tr><tr><td><code>NET-FW-001</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/network.tf; infra/routing.tf</td><td>No approved central inspection layer is consumed by the workload.</td></tr><tr><td><code>NET-FW-002</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/routing.tf</td><td>The application default route uses the Internet next hop.</td></tr><tr><td><code>NET-FW-003</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/routing.tf</td><td>A direct 0.0.0.0/0 to Internet bypass is explicitly declared.</td></tr><tr><td><code>NET-FW-004</code></td><td><span class='pill neutral'>External Dependency</span></td><td>docs/platform-context.md</td><td>No platform firewall policy or ownership evidence is available.</td></tr><tr><td><code>NET-RT-001</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/routing.tf</td><td>The configured route bypasses the required central inspection path.</td></tr><tr><td><code>NET-RT-002</code></td><td><span class='pill warning'>Partially Met</span></td><td>infra/routing.tf</td><td>The route table is associated with the application subnet, but it enforces a non-compliant path.</td></tr><tr><td><code>NET-RT-003</code></td><td><span class='pill neutral'>Unable to Validate</span></td><td>infra/network.tf; infra/routing.tf</td><td>No complete stateful inspection or return-route design is available.</td></tr><tr><td><code>NET-RT-004</code></td><td><span class='pill neutral'>Unable to Validate</span></td><td>Repository-only assessment</td><td>Effective routes were not queried from live Azure.</td></tr><tr><td><code>NET-IN-001</code></td><td><span class='pill neutral'>Unable to Validate</span></td><td>infra/security.tf</td><td>Internet-sourced HTTPS is allowed, but public ingress need and approval are undocumented and no public ingress resource is declared.</td></tr><tr><td><code>NET-IN-002</code></td><td><span class='pill neutral'>Unable to Validate</span></td><td>infra/</td><td>No approved ingress component is declared; whether Internet ingress is required is unknown.</td></tr><tr><td><code>NET-ADM-001</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/security.tf</td><td>The only explicit administrative policy is an Internet-sourced RDP allow rule.</td></tr><tr><td><code>NET-PE-001</code></td><td><span class='pill warning'>Partially Met</span></td><td>infra/storage.tf; infra/keyvault.tf</td><td>Storage has a blob Private Endpoint, but Key Vault does not.</td></tr><tr><td><code>NET-PE-002</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/storage.tf; infra/keyvault.tf</td><td>Both backend services have public network access enabled; Storage permits all networks.</td></tr><tr><td><code>NET-PE-003</code></td><td><span class='pill warning'>Partially Met</span></td><td>infra/storage.tf</td><td>The target, blob subresource, and dedicated subnet are correct, but DNS integration is missing.</td></tr><tr><td><code>NET-PE-004</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/storage.tf</td><td>The Storage public endpoint remains an unrestricted fallback.</td></tr><tr><td><code>NET-DNS-001</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/storage.tf</td><td>No zone group or VNet link establishes private endpoint name resolution.</td></tr><tr><td><code>NET-DNS-002</code></td><td><span class='pill neutral'>External Dependency</span></td><td>docs/platform-context.md</td><td>The enterprise resolver and forwarding design is not provided.</td></tr><tr><td><code>NET-DNS-003</code></td><td><span class='pill neutral'>Unable to Validate</span></td><td>infra/storage.tf</td><td>A workload private zone is created, but central namespace ownership is unknown.</td></tr><tr><td><code>NET-MON-001</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/</td><td>No workload network-security telemetry is declared or externally evidenced.</td></tr><tr><td><code>NET-MON-002</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/</td><td>No Virtual Network flow logging is declared.</td></tr><tr><td><code>NET-MON-003</code></td><td><span class='pill neutral'>External Dependency</span></td><td>docs/platform-context.md</td><td>Central firewall telemetry cannot be validated without platform evidence.</td></tr><tr><td><code>NET-MON-004</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/</td><td>No diagnostic settings or approved monitoring destination are declared.</td></tr><tr><td><code>NET-MON-005</code></td><td><span class='pill neutral'>Unable to Validate</span></td><td>infra/</td><td>Business-critical paths and any externally managed connectivity monitoring are not identified.</td></tr><tr><td><code>NET-MON-006</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/</td><td>No network-security or connectivity alerts are declared.</td></tr><tr><td><code>NET-ENC-001</code></td><td><span class='pill warning'>Partially Met</span></td><td>infra/storage.tf; infra/security.tf</td><td>Storage requires TLS 1.2 and application ingress uses HTTPS, but RDP exposure remains an administrative transport concern.</td></tr><tr><td><code>NET-RES-001</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/; docs/platform-context.md</td><td>Critical firewall, DNS, ingress, and monitoring dependencies are not concretely identified.</td></tr><tr><td><code>NET-RES-002</code></td><td><span class='pill danger'>Not Met</span></td><td>infra/routing.tf; infra/storage.tf</td><td>Direct Internet routing and public Storage access provide bypass paths rather than failing closed.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        
+    
+        <section class="section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Strengths</span>
+              <h2>What Is Working Well</h2>
+            </div>
+          </div>
+          <div class="card positive-card">
+                    <div class="positive-item">
+                      <div class="checkmark">✓</div>
+                      <div><strong>Purpose-specific subnet separation</strong><p>infra/network.tf separates application, management, and Private Endpoint address ranges.</p></div>
+                    </div>
+                    
+                    <div class="positive-item">
+                      <div class="checkmark">✓</div>
+                      <div><strong>Correct Storage Private Endpoint target</strong><p>infra/storage.tf targets the Storage account blob subresource from the dedicated Private Endpoint subnet.</p></div>
+                    </div>
+                    
+                    <div class="positive-item">
+                      <div class="checkmark">✓</div>
+                      <div><strong>Storage transport baseline</strong><p>infra/storage.tf requires TLS 1.2 and disables anonymous nested-item publication.</p></div>
+                    </div>
+                    
+                    <div class="positive-item">
+                      <div class="checkmark">✓</div>
+                      <div><strong>Explicit route and NSG associations</strong><p>infra/routing.tf and infra/security.tf associate declared controls with their intended application and management subnets.</p></div>
+                    </div>
+                    </div>
+        </section>
+        
+    
+        <section class="section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Validation</span>
+              <h2>Assumptions &amp; Validation Required</h2>
+            </div>
+          </div>
+          <div class="card table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Topic</th><th>Assumption / Dependency</th><th>Validation Required</th></tr></thead>
+              <tbody><tr><td>ASM-001</td><td>Live Azure state</td><td>The assessment is based on repository intent only; deployed reachability, effective routes, effective NSG rules, and configuration drift were not inspected.</td><td>Perform targeted read-only Azure validation before security acceptance.</td></tr><tr><td>ASM-002</td><td>Shared connectivity platform</td><td>Platform hub, firewall, DNS, hybrid connectivity, and monitoring identifiers and configurations were not available.</td><td>Obtain authoritative platform outputs and ownership details from the platform team.</td></tr><tr><td>ASM-003</td><td>Workload security profile</td><td>Required public ingress, egress destinations, hybrid access, administrative model, data sensitivity, and critical paths are not documented.</td><td>Complete the workload security profile and required-flow matrix.</td></tr><tr><td>ASM-004</td><td>Address-space uniqueness</td><td>The declared VNets do not overlap each other, but no connected Azure or on-premises address inventory was available.</td><td>Validate 10.10.0.0/16 and 10.20.0.0/16 against the enterprise IP address plan.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        
+  </main>
+
+  <footer>
+    Generated from <code>network-assessment.json</code> by the repository assessment renderer.
+  </footer>
+</body>
+</html>

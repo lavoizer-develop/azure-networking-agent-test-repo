@@ -1,32 +1,92 @@
-# Repository Instructions
+# Repository Copilot Instructions
 
-This repository contains Azure infrastructure and documentation used for architecture and engineering assessment.
+## Purpose
+
+This repository demonstrates a security-focused Azure Networking Assessment Agent for Azure Landing Zone and Zero Trust network reviews.
 
 ## Repository Structure
 
-- Architecture, requirements, and design documentation should be stored under `docs/`.
-- Infrastructure as Code is stored under `infra/`.
-- Generated assessment reports should be stored under `docs/assessments/`.
-- Reusable Copilot agents are stored under `.github/agents/`.
-- Reusable Copilot skills are stored under `.github/skills/`.
-- Reusable prompt files are stored under `.github/prompts/`.
+- `.github/agents/` — custom Copilot agents
+- `.github/skills/` — reusable specialist skills
+- `.github/prompts/` — reusable task prompts
+- `docs/network-requirements.md` — authoritative network-security target state
+- `docs/platform-context.md` — optional shared-platform context
+- `docs/assessments/` — generated assessment artifacts
+- `infra/` — workload Infrastructure as Code
+- `scripts/` — deterministic repository tooling
 
-## Azure Conventions
+## Architecture and Security
 
-- Use Canada Central as the default Azure region unless another region is explicitly required.
-- Use Terraform for Infrastructure as Code unless the repository explicitly defines another standard.
-- Prefer managed identities over stored credentials or access keys where supported.
-- Do not place secrets, credentials, tokens, or connection strings in source control.
-- Follow least-privilege principles for RBAC and network access.
-- Prefer private connectivity when required by the documented architecture or security requirements.
+- Treat `docs/network-requirements.md` as the authoritative target state.
+- Follow Zero Trust principles:
+  - verify explicitly
+  - use least privilege
+  - assume breach
+- Consume centrally managed platform services rather than recreating them.
+- Do not invent missing regions, CIDRs, firewall addresses, DNS addresses, resource IDs, or platform topology.
+- When required evidence is unavailable, use `Unable to Validate`, `Required Confirmation`, or `External Dependency` as appropriate.
+- Do not assume a fixed Azure region. Use the region defined by the workload or environment.
 
-## Assessment Guidance
+## Infrastructure as Code
 
-When assessing the repository:
+- Terraform is the default IaC format in this repository unless another format is explicitly present.
+- Infrastructure as Code is the primary evidence of workload implementation intent.
+- Do not modify IaC during an assessment unless the user explicitly requests remediation.
+- Prefer managed identities, least privilege, and private connectivity where required by policy or workload architecture.
 
-- Read documented requirements before recommending architectural changes.
-- Validate documentation against the actual implementation.
-- Distinguish confirmed facts from assumptions.
-- Identify external/shared platform dependencies clearly.
-- Do not invent resources, requirements, or architecture that are not supported by repository evidence.
-- Preserve existing implementation unless the user explicitly asks for remediation changes.
+## Assessment Efficiency
+
+Minimize unnecessary context and repeated work.
+
+- Search before reading entire files.
+- Read only files relevant to applicable network requirements.
+- Do not inspect unrelated application code.
+- Do not repeatedly reopen files after sufficient evidence has been collected.
+- Deduplicate findings by root cause.
+- Do not use previous generated assessments as evidence.
+- Do not read generated Markdown or HTML reports during technical analysis.
+- Do not inspect `.git/`, `.terraform/`, `node_modules/`, state files, plan files, binary files, or archived assessments unless explicitly required.
+
+## Assessment Output
+
+The structured source of truth is:
+
+`docs/assessments/network-assessment.json`
+
+The agent must generate this JSON only after technical findings are finalized.
+
+Then use:
+
+`python3 scripts/render-assessment.py docs/assessments/network-assessment.json`
+
+or, if required:
+
+`python scripts/render-assessment.py docs/assessments/network-assessment.json`
+
+to generate:
+
+- `docs/assessments/network-recommendations.md`
+- `docs/assessments/network-recommendations.html`
+
+Do not independently author the Markdown and HTML versions.
+
+Do not manually edit rendered reports. Fix the source JSON and rerun the renderer.
+
+## Modification Boundaries
+
+During a normal assessment, only these files may be created or updated:
+
+- `docs/assessments/network-assessment.json`
+- `docs/assessments/network-recommendations.md`
+- `docs/assessments/network-recommendations.html`
+
+Do not modify:
+
+- workload infrastructure
+- platform infrastructure
+- requirements documents
+- architecture documents
+- deployment pipelines
+- application code
+
+unless explicitly asked by the user.
